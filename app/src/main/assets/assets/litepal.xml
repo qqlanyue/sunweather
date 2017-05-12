@@ -1,0 +1,10 @@
+<litepal>
+    <dbname value="lanyue_weather"/>
+    <version value="1"/>
+    <list>
+        <mapping class="com.example.c515.myweather.android.db.Province"/>       //有一点点的改动
+        <mapping class="com.example.c515.myweather.android.db.City"/>
+        <mapping class="com.example.c515.myweather.android.db.County"/>
+    </list>
+
+</litepal>
