@@ -2,6 +2,7 @@ package com.example.c515.myweather.fragment;
 
 import android.app.Fragment;
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,13 +14,16 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.c515.myweather.MainActivity;
 import com.example.c515.myweather.R;
+import com.example.c515.myweather.WeatherActivity;
 import com.example.c515.myweather.db.City;
 import com.example.c515.myweather.db.County;
 import com.example.c515.myweather.db.Province;
 import com.example.c515.myweather.util.HttpUtil;
 import com.example.c515.myweather.util.Utility;
 
+import org.litepal.LitePalApplication;
 import org.litepal.crud.DataSupport;
 
 import java.io.IOException;
@@ -74,7 +78,7 @@ public class ChooseAreaFragment extends Fragment {
         titleText=(TextView) view.findViewById(R.id.title_text);
         backButton=(Button)view.findViewById(R.id.back_button);
         listView=(ListView)view.findViewById(R.id.list_view);
-        adapter=new ArrayAdapter<>(getContext(),android.R.layout.simple_list_item_1,dataList);
+        adapter=new ArrayAdapter<>(LitePalApplication.getContext(),android.R.layout.simple_list_item_1,dataList);
         listView.setAdapter(adapter);           //将初始化后的ArrayAdapter设置为ListView的适配器
         return view;
     }
@@ -91,6 +95,20 @@ public class ChooseAreaFragment extends Fragment {
                 }else if (currentLevel==LEVEL_CITY){
                     selectedCity=cityList.get(position);
                     queryCounties();
+                }else if (currentLevel==LEVEL_COUNTY){
+                    String weatherId=countyList.get(position).getWeatherId();
+                    if (getActivity() instanceof MainActivity){
+                    Intent intent=new Intent(getActivity(), WeatherActivity.class);
+                    intent.putExtra("weather_id",weatherId);
+                    startActivity(intent);
+                    getActivity().finish();
+                    }else if (getActivity() instanceof WeatherActivity){
+                        WeatherActivity activity=(WeatherActivity)getActivity();
+                        activity.drawerLayout.closeDrawers();
+                        activity.swipeRefresh.setRefreshing(true);
+                        activity.requestWeather(weatherId);
+
+                    }
                 }
             }
         });
@@ -132,7 +150,7 @@ public class ChooseAreaFragment extends Fragment {
     private  void queryCities(){
         titleText.setText(selectedProvince.getProvinceName());
         backButton.setVisibility(View.VISIBLE);
-        cityList= DataSupport.where("provinceid=?", String.valueOf(selectedProvince.getId())).find(City.class);
+        cityList= DataSupport.where("provinceid = ?", String.valueOf(selectedProvince.getId())).find(City.class);
         if (cityList.size()>0){
             dataList.clear();
             for (City city:cityList){
@@ -176,18 +194,6 @@ public class ChooseAreaFragment extends Fragment {
         showProgressDialog();
         HttpUtil.sendOKHttpRequest(address, new Callback() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                //通过runOnUiThread()方法回到主线程逻辑
-                getActivity().runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        closeProgressDialog();
-                        Toast.makeText(getContext(),"加载失败",Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-
-            @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String responseText=response.body().string();
                 boolean result=false;
@@ -205,12 +211,25 @@ public class ChooseAreaFragment extends Fragment {
                             closeProgressDialog();
                             if ("province".equals(type)){
                                 queryProvinces();
+                            }else if ("city".equals(type)){
+                                queryCities();
                             }else if ("county".equals(type)){
                                 queryCounties();
                             }
                         }
                     });
                 }
+            }
+            @Override
+            public void onFailure(Call call, IOException e) {
+                //通过runOnUiThread()方法回到主线程逻辑
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        closeProgressDialog();
+                        Toast.makeText(LitePalApplication.getContext(),"加载失败",Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
         });
     }
@@ -228,8 +247,8 @@ public class ChooseAreaFragment extends Fragment {
     /*
     * 关闭进度对话框
     * */
-    private void closeProgressDialog(){
-        if (progressDialog!=null){
+    private void closeProgressDialog() {
+        if (progressDialog != null) {
             progressDialog.dismiss();
         }
     }
